@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alternating Timer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body
+    class="min-h-screen bg-slate-900 text-slate-100 flex items-center justify-center"
+  >
+    <main
+      class="w-full max-w-md px-6 py-8 bg-slate-800 rounded-2xl shadow-2xl shadow-indigo-900/30"
+    >
+      <header class="space-y-2 text-center">
+        <h1 class="text-2xl font-semibold tracking-tight">
+          Sitzen & Stehen Timer
+        </h1>
+        <p class="text-sm text-slate-400">
+          Wechsle zwischen 40 Minuten Sitzen und 15 Minuten Stehen, während du
+          arbeitest.
+        </p>
+      </header>
+
+      <section class="mt-10 space-y-6">
+        <div class="text-center space-y-3">
+          <span
+            id="run-label"
+            class="inline-flex items-center gap-2 rounded-full bg-indigo-500/20 px-4 py-1 text-sm font-medium text-indigo-200"
+          >
+            Als Nächstes: 40 Minuten Sitzen
+          </span>
+          <div class="text-5xl font-mono tracking-widest" id="time-remaining">
+            40:00
+          </div>
+        </div>
+
+        <div class="flex justify-center gap-3">
+          <button
+            type="button"
+            id="control-button"
+            class="inline-flex items-center gap-2 rounded-full bg-indigo-500 px-7 py-3 text-sm font-semibold tracking-wide text-white transition hover:bg-indigo-400 focus:outline-none focus-visible:ring focus-visible:ring-indigo-300 disabled:cursor-not-allowed disabled:bg-indigo-500/40"
+          >
+            Sitzphase starten
+          </button>
+          <button
+            type="button"
+            id="skip-button"
+            class="inline-flex items-center gap-2 rounded-full border border-indigo-400/60 px-7 py-3 text-sm font-semibold tracking-wide text-indigo-200 transition hover:bg-indigo-500/10 focus:outline-none focus-visible:ring focus-visible:ring-indigo-300"
+          >
+            Zur Stehphase wechseln
+          </button>
+        </div>
+      </section>
+
+      <section class="mt-10 space-y-3" id="exercise-panel">
+        <h2 class="text-lg font-medium text-indigo-200">Bewegungstipp</h2>
+        <p class="text-sm text-slate-400">
+          Übungsempfehlung für den nächsten Positionswechsel.
+        </p>
+        <article
+          id="exercise-card"
+          class="hidden rounded-xl border border-indigo-500/20 bg-slate-900/40 p-4 text-left"
+        >
+          <div
+            class="flex items-center justify-between text-xs uppercase tracking-wide text-indigo-300"
+          >
+            <span id="exercise-body-part"></span>
+            <span id="exercise-duration"></span>
+          </div>
+          <h3
+            class="mt-2 text-xl font-semibold text-slate-100"
+            id="exercise-name"
+          ></h3>
+          <p
+            class="mt-1 text-sm font-medium text-indigo-100"
+            id="exercise-repetitions"
+          ></p>
+          <p class="mt-3 text-sm text-slate-300" id="exercise-description"></p>
+        </article>
+        <p id="exercise-loading" class="text-xs text-slate-500">
+          Übungen werden geladen …
+        </p>
+      </section>
+    </main>
+
+    <footer
+      class="absolute bottom-6 w-full px-6 text-center text-xs text-slate-500"
+    >
+      Sound Effect by
+      <a
+        class="text-indigo-300 underline underline-offset-4"
+        href="https://pixabay.com/de/users/kakaist-48093450/?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=330333"
+        target="_blank"
+        rel="noreferrer"
+      >
+        kave msri
+      </a>
+      from
+      <a
+        class="text-indigo-300 underline underline-offset-4"
+        href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=music&utm_content=330333"
+        target="_blank"
+        rel="noreferrer"
+      >
+        Pixabay
+      </a>
+    </footer>
+
+    <audio id="completion-sound" src="assets/ding.mp3" preload="auto"></audio>
+
+    <script src="scripts/timer.js"></script>
+  </body>
+</html>
