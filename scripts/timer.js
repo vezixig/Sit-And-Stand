@@ -9,6 +9,8 @@ const controlButton = document.getElementById("control-button");
 const skipButton = document.getElementById("skip-button");
 const runLabel = document.getElementById("run-label");
 const timeRemaining = document.getElementById("time-remaining");
+const addTimeButton = document.getElementById("add-time-button");
+const subtractTimeButton = document.getElementById("subtract-time-button");
 const completionSound = document.getElementById("completion-sound");
 const exerciseCard = document.getElementById("exercise-card");
 const exerciseBodyPart = document.getElementById("exercise-body-part");
@@ -19,6 +21,9 @@ const exerciseDescription = document.getElementById("exercise-description");
 const exerciseLoading = document.getElementById("exercise-loading");
 const hydrationButtons = document.querySelectorAll("[data-hydration-button]");
 const hydrationCountLabel = document.getElementById("hydration-count");
+
+const ADJUSTMENT_STEP_SECONDS = 5 * 60;
+const MIN_RUN_DURATION_SECONDS = 60;
 
 const HYDRATION_STORAGE_KEY = "alternatingHydrationTracker";
 const HYDRATION_ACTIVE_CLASSES = [
@@ -39,6 +44,7 @@ const HYDRATION_VOLUME_INACTIVE_CLASSES = ["text-slate-400"];
 
 let currentRunIndex = 0;
 let remainingSeconds = runs[currentRunIndex].durationMinutes * 60;
+let runAdjustmentSeconds = 0;
 let timerId = null;
 let isRunning = false;
 let runStartedAt = null;
@@ -48,6 +54,10 @@ let hydrationState = [];
 
 const sessionName = (index) => (index === 0 ? "Sitzphase" : "Stehphase");
 const nextRunIndex = () => (currentRunIndex + 1) % runs.length;
+const getCurrentDurationSeconds = () => {
+  const baseSeconds = runs[currentRunIndex].durationMinutes * 60;
+  return Math.max(MIN_RUN_DURATION_SECONDS, baseSeconds + runAdjustmentSeconds);
+};
 
 const formatSeconds = (totalSeconds) => {
   const minutes = Math.floor(totalSeconds / 60);
@@ -59,7 +69,8 @@ const formatSeconds = (totalSeconds) => {
 };
 
 const resetRemainingForCurrentRun = () => {
-  remainingSeconds = runs[currentRunIndex].durationMinutes * 60;
+  runAdjustmentSeconds = 0;
+  remainingSeconds = getCurrentDurationSeconds();
   timeRemaining.textContent = formatSeconds(remainingSeconds);
 };
 
@@ -83,6 +94,7 @@ const persistRunState = () => {
       JSON.stringify({
         runIndex: currentRunIndex,
         startedAt: runStartedAt,
+        adjustmentSeconds: runAdjustmentSeconds,
       })
     );
   } catch (error) {
@@ -91,7 +103,7 @@ const persistRunState = () => {
 };
 
 const updateRemainingFromStart = () => {
-  const durationSeconds = runs[currentRunIndex].durationMinutes * 60;
+  const durationSeconds = getCurrentDurationSeconds();
 
   if (!runStartedAt) {
     remainingSeconds = durationSeconds;
@@ -204,6 +216,38 @@ const playCompletionSound = () => {
   });
 };
 
+const adjustCurrentRunDuration = (deltaSeconds) => {
+  const baseDurationSeconds = runs[currentRunIndex].durationMinutes * 60;
+  const targetDuration = Math.max(
+    MIN_RUN_DURATION_SECONDS,
+    baseDurationSeconds + runAdjustmentSeconds + deltaSeconds
+  );
+  const nextAdjustment = targetDuration - baseDurationSeconds;
+
+  if (nextAdjustment === runAdjustmentSeconds) {
+    return;
+  }
+
+  runAdjustmentSeconds = nextAdjustment;
+
+  if (isRunning) {
+    updateRemainingFromStart();
+
+    if (remainingSeconds <= 0) {
+      clearInterval(timerId);
+      timerId = null;
+      playCompletionSound();
+      advanceRun();
+      return;
+    }
+  } else {
+    remainingSeconds = targetDuration;
+    timeRemaining.textContent = formatSeconds(remainingSeconds);
+  }
+
+  persistRunState();
+};
+
 const advanceRun = () => {
   currentRunIndex = (currentRunIndex + 1) % runs.length;
   resetRemainingForCurrentRun();
@@ -227,7 +271,6 @@ const startRun = () => {
     return;
   }
 
-  resetRemainingForCurrentRun();
   startTimerInterval();
 };
 
@@ -253,7 +296,7 @@ const restoreRunFromStorage = () => {
     }
 
     const parsed = JSON.parse(raw);
-    const { runIndex, startedAt } = parsed;
+    const { runIndex, startedAt, adjustmentSeconds } = parsed;
 
     if (typeof runIndex !== "number" || typeof startedAt !== "number") {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -266,7 +309,15 @@ const restoreRunFromStorage = () => {
       return false;
     }
 
-    const durationSeconds = storedRun.durationMinutes * 60;
+    const storedAdjustment = Number.isFinite(adjustmentSeconds)
+      ? adjustmentSeconds
+      : 0;
+    const baseDurationSeconds = storedRun.durationMinutes * 60;
+    const durationSeconds = Math.max(
+      MIN_RUN_DURATION_SECONDS,
+      baseDurationSeconds + storedAdjustment
+    );
+    const normalizedAdjustment = durationSeconds - baseDurationSeconds;
     const elapsedSeconds = Math.max(
       0,
       Math.floor((Date.now() - startedAt) / 1000)
@@ -274,6 +325,7 @@ const restoreRunFromStorage = () => {
 
     if (elapsedSeconds >= durationSeconds) {
       currentRunIndex = (runIndex + 1) % runs.length;
+      runAdjustmentSeconds = 0;
       runStartedAt = null;
       window.localStorage.removeItem(STORAGE_KEY);
       return false;
@@ -281,6 +333,7 @@ const restoreRunFromStorage = () => {
 
     currentRunIndex = runIndex;
     runStartedAt = startedAt;
+    runAdjustmentSeconds = normalizedAdjustment;
     showExerciseForCurrentRun();
     startTimerInterval(true);
     return true;
@@ -540,6 +593,18 @@ exercises = Array.isArray(embeddedExercises.exercises)
   : [];
 
 setupHydrationButtons();
+
+if (addTimeButton) {
+  addTimeButton.addEventListener("click", () =>
+    adjustCurrentRunDuration(ADJUSTMENT_STEP_SECONDS)
+  );
+}
+
+if (subtractTimeButton) {
+  subtractTimeButton.addEventListener("click", () =>
+    adjustCurrentRunDuration(-ADJUSTMENT_STEP_SECONDS)
+  );
+}
 
 controlButton.addEventListener("click", startRun);
 skipButton.addEventListener("click", skipRun);
