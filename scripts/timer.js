@@ -17,6 +17,25 @@ const exerciseName = document.getElementById("exercise-name");
 const exerciseRepetitions = document.getElementById("exercise-repetitions");
 const exerciseDescription = document.getElementById("exercise-description");
 const exerciseLoading = document.getElementById("exercise-loading");
+const hydrationButtons = document.querySelectorAll("[data-hydration-button]");
+const hydrationCountLabel = document.getElementById("hydration-count");
+
+const HYDRATION_STORAGE_KEY = "alternatingHydrationTracker";
+const HYDRATION_ACTIVE_CLASSES = [
+  "bg-indigo-400/80",
+  "text-slate-900",
+  "border-indigo-200",
+  "shadow-indigo-500/30",
+  "shadow-lg",
+];
+const HYDRATION_INACTIVE_CLASSES = [
+  "bg-slate-900/40",
+  "text-indigo-100",
+  "border-indigo-200/30",
+  "shadow-none",
+];
+const HYDRATION_VOLUME_ACTIVE_CLASSES = ["text-slate-900/90"];
+const HYDRATION_VOLUME_INACTIVE_CLASSES = ["text-slate-400"];
 
 let currentRunIndex = 0;
 let remainingSeconds = runs[currentRunIndex].durationMinutes * 60;
@@ -25,6 +44,7 @@ let isRunning = false;
 let runStartedAt = null;
 let exercises = [];
 let lastExerciseId = null;
+let hydrationState = [];
 
 const sessionName = (index) => (index === 0 ? "Sitzphase" : "Stehphase");
 const nextRunIndex = () => (currentRunIndex + 1) % runs.length;
@@ -394,9 +414,132 @@ const embeddedExercises = {
   ],
 };
 
+const updateHydrationUI = () => {
+  if (
+    !hydrationButtons.length ||
+    !hydrationCountLabel ||
+    !hydrationState.length
+  ) {
+    return;
+  }
+
+  const consumed = hydrationState.filter(Boolean).length;
+  hydrationCountLabel.textContent = `${consumed} / ${hydrationState.length} getrunken`;
+
+  hydrationButtons.forEach((button, index) => {
+    const isActive = Boolean(hydrationState[index]);
+    button.setAttribute("aria-pressed", String(isActive));
+
+    if (isActive) {
+      button.classList.add(...HYDRATION_ACTIVE_CLASSES);
+      button.classList.remove(...HYDRATION_INACTIVE_CLASSES);
+    } else {
+      button.classList.add(...HYDRATION_INACTIVE_CLASSES);
+      button.classList.remove(...HYDRATION_ACTIVE_CLASSES);
+    }
+
+    const volumeLabel = button.querySelector(".hydration-volume");
+    if (volumeLabel) {
+      if (isActive) {
+        volumeLabel.classList.add(...HYDRATION_VOLUME_ACTIVE_CLASSES);
+        volumeLabel.classList.remove(...HYDRATION_VOLUME_INACTIVE_CLASSES);
+      } else {
+        volumeLabel.classList.add(...HYDRATION_VOLUME_INACTIVE_CLASSES);
+        volumeLabel.classList.remove(...HYDRATION_VOLUME_ACTIVE_CLASSES);
+      }
+    }
+  });
+};
+
+const persistHydrationState = () => {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) {
+      return;
+    }
+
+    window.localStorage.setItem(
+      HYDRATION_STORAGE_KEY,
+      JSON.stringify(hydrationState)
+    );
+  } catch (_) {
+    // Storage unavailable; ignore.
+  }
+};
+
+const restoreHydrationState = () => {
+  try {
+    if (typeof window === "undefined" || !window.localStorage) {
+      return false;
+    }
+
+    const raw = window.localStorage.getItem(HYDRATION_STORAGE_KEY);
+    if (!raw) {
+      return false;
+    }
+
+    const parsed = JSON.parse(raw);
+    const isValidArray =
+      Array.isArray(parsed) &&
+      parsed.length === hydrationState.length &&
+      parsed.every((value) => typeof value === "boolean");
+
+    if (!isValidArray) {
+      window.localStorage.removeItem(HYDRATION_STORAGE_KEY);
+      return false;
+    }
+
+    hydrationState = parsed.slice();
+    updateHydrationUI();
+    return true;
+  } catch (_) {
+    try {
+      if (typeof window !== "undefined" && window.localStorage) {
+        window.localStorage.removeItem(HYDRATION_STORAGE_KEY);
+      }
+    } catch (error) {
+      // Nothing else to do.
+    }
+    return false;
+  }
+};
+
+const toggleHydrationAt = (index) => {
+  if (index < 0 || index >= hydrationState.length) {
+    return;
+  }
+
+  hydrationState[index] = !hydrationState[index];
+  updateHydrationUI();
+  persistHydrationState();
+};
+
+const setupHydrationButtons = () => {
+  if (!hydrationButtons.length || !hydrationCountLabel) {
+    return;
+  }
+
+  hydrationState = Array.from({ length: hydrationButtons.length }, () => false);
+
+  if (!restoreHydrationState()) {
+    updateHydrationUI();
+  }
+
+  hydrationButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const index = Number(button.dataset.hydrationIndex);
+      if (Number.isNaN(index)) {
+        return;
+      }
+      toggleHydrationAt(index);
+    });
+  });
+};
+
 exercises = Array.isArray(embeddedExercises.exercises)
   ? embeddedExercises.exercises
   : [];
+
+setupHydrationButtons();
 
 controlButton.addEventListener("click", startRun);
 skipButton.addEventListener("click", skipRun);
