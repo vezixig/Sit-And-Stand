@@ -21,6 +21,7 @@ const exerciseDescription = document.getElementById("exercise-description");
 const exerciseLoading = document.getElementById("exercise-loading");
 const hydrationButtons = document.querySelectorAll("[data-hydration-button]");
 const hydrationCountLabel = document.getElementById("hydration-count");
+const defaultDocumentTitle = document.title || "Alternating Timer";
 
 const ADJUSTMENT_STEP_SECONDS = 5 * 60;
 const MIN_RUN_DURATION_SECONDS = 60;
@@ -72,6 +73,7 @@ const resetRemainingForCurrentRun = () => {
   runAdjustmentSeconds = 0;
   remainingSeconds = getCurrentDurationSeconds();
   timeRemaining.textContent = formatSeconds(remainingSeconds);
+  updateDocumentTitle();
 };
 
 const updateSkipButton = () => {
@@ -116,7 +118,19 @@ const updateRemainingFromStart = () => {
   }
 
   timeRemaining.textContent = formatSeconds(remainingSeconds);
+  updateDocumentTitle();
 };
+
+function updateDocumentTitle() {
+  if (isRunning && remainingSeconds > 0) {
+    const currentLabel =
+      runs[currentRunIndex]?.label || sessionName(currentRunIndex);
+    document.title = `${formatSeconds(remainingSeconds)} • ${currentLabel}`;
+    return;
+  }
+
+  document.title = defaultDocumentTitle;
+}
 
 const selectRandomExercise = () => {
   if (!exercises.length) {
@@ -181,6 +195,7 @@ const setIdleState = () => {
   controlButton.disabled = false;
   updateSkipButton();
   persistRunState();
+  updateDocumentTitle();
 };
 
 const updateRunningState = () => {
@@ -243,6 +258,7 @@ const adjustCurrentRunDuration = (deltaSeconds) => {
   } else {
     remainingSeconds = targetDuration;
     timeRemaining.textContent = formatSeconds(remainingSeconds);
+    updateDocumentTitle();
   }
 
   persistRunState();
